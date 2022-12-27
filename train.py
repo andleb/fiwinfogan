@@ -247,11 +247,10 @@ if __name__ == "__main__":
             if i % WAVEGAN_DISC_NUPDATES == 0:
 
                 # GENERATOR UPDATE
-
                 optimizer_G.zero_grad()
 
                 # G Loss
-                D_fake, cHat = D(G(z))
+                D_fake, _ = D(G(z))
                 G_loss = torch.mean(-D_fake)
 
                 # Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
@@ -265,11 +264,11 @@ if __name__ == "__main__":
                 optimizer_G.step()
 
                 # INFORMATIONAL LOSS
-
                 optimizer_Q.zero_grad()
 
-                Q_loss = LAMBDA_INFO * criterion_Q(cHat, c)
+                _, cHat = D(G(z))
 
+                Q_loss = LAMBDA_INFO * criterion_Q(cHat, c)
                 Q_loss.backward()
                 writer.add_scalar('Loss/Q_Network', Q_loss.detach().item(), step)
                 optimizer_Q.step()
