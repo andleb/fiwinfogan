@@ -232,7 +232,7 @@ if __name__ == "__main__":
 
             writer.add_scalar('Loss/Discriminator', D_loss.detach().item(), step)
 
-            D_loss.backward()
+            D_loss.backward(retain_graph=True)
             optimizer_D.step()
 
             if i % WAVEGAN_DISC_NUPDATES == 0:
@@ -244,6 +244,12 @@ if __name__ == "__main__":
                 # G Loss
                 G_loss = torch.mean(-D_fake)
                 writer.add_scalar('Loss/Generator', G_loss.detach().item(), step)
+
+                # Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+                # RuntimeError: Trying to backward through the graph a second time (or directly access saved tensors after they have already been freed).
+                # Saved intermediate values of the graph are freed when you call .backward() or autograd.grad().
+                #Specify retain_graph=True if you need to backward through the graph a second time or if you need to access saved tensors
+                #after calling backward.
 
                 G_loss.backward(retain_graph=True)
                 optimizer_G.step()
