@@ -224,16 +224,31 @@ class WaveGANQNetwork(WaveGANDiscriminator):
             dim=64,
             stride=4,
             use_batchnorm=False,
-            phaseshuffle_rad=0,
+            phaseshuffle_rad=2,
             slice_len=16384,
     ):
 
         super(WaveGANQNetwork, self).__init__(
-            kernel_len=25,
-            dim=64,
-            stride=4,
-            use_batchnorm=False,
-            phaseshuffle_rad=0
+            kernel_len=kernel_len,
+            dim=dim,
+            stride=stride,
+            use_batchnorm=use_batchnorm,
+            phaseshuffle_rad=phaseshuffle_rad,
+            slice_len=slice_len
         )
-        self.flat_dim = dim * 16 * 16 if slice_len == 16384 else dim * 16 * 64
-        self.fc_out = torch.nn.Linear(self.flat_dim, num_categ)
+
+        # add additional output layer
+        self.latent_out = torch.nn.Linear(self.flat_dim, num_categ)
+
+    def forward(self, x):
+
+        output = self.downconv_0(x)
+        output = self.downconv_1(output)
+        output = self.downconv_2(output)
+        output = self.downconv_3(output)
+        output = self.downconv_4(output)
+
+        disc_output = self.fc_out(output.view(-1, self.flat_dim))
+        latent_output = self.latent_out(output.view(-1, self.flat_dim))
+
+        return disc_output, latent_output

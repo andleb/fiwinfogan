@@ -48,9 +48,9 @@ class AudioDataSet:
         return self.len
 
 
-def gradient_penalty(G, D, real, fake, epsilon):
+def gradient_penalty(D, real, fake, epsilon):
     x_hat = epsilon * real + (1 - epsilon) * fake
-    scores = D(x_hat)
+    scores, _ = D(x_hat)
     grad = torch.autograd.grad(
         outputs=scores,
         inputs=x_hat,
@@ -118,22 +118,7 @@ if __name__ == "__main__":
         help='Save interval in epochs'
     )
 
-    #TODO: switch fiw vs info:
-    # # Q-net Arguments
-    # Q_group = parser.add_mutually_exclusive_group()
-    # Q_group.add_argument(
-    #     '--ciw',
-    #     action='store_true',
-    #     help='Trains a ciwgan'
-    # )
-    # Q_group.add_argument(
-    #     '--fiw',
-    #     action='store_true',
-    #     help='Trains a fiwgan'
-    # )
-
     args = parser.parse_args()
-    # train_Q = args.ciw or args.fiw
 
     # Parameters
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -144,9 +129,13 @@ if __name__ == "__main__":
     NUM_EPOCHS = args.num_epochs
     WAVEGAN_DISC_NUPDATES = 5
     BATCH_SIZE = args.batch_size
-    LAMBDA = 10
+
+    # TODO:
+    # * add other weights, losses if doing pure InfoWaveGAN
     # Q penalty portion (the rest are 1)
-    LAMBDA_INFO = 1
+    LAMBDA_GRAD = 10
+    LAMBDA_INFO = 0.5
+
     LEARNING_RATE = 1e-4
     BETA1 = 0.5
     BETA2 = 0.9
@@ -166,27 +155,20 @@ if __name__ == "__main__":
 
     def make_new():
         G = WaveGANGenerator(slice_len=SLICE_LEN, ).to(device).train()
-        D = WaveGANDiscriminator(slice_len=SLICE_LEN).to(device).train()
-        Q = WaveGANQNetwork(slice_len=SLICE_LEN, num_categ=NUM_CATEG).to(device).train()
+        D = WaveGANQNetwork(slice_len=SLICE_LEN, num_categ=NUM_CATEG).to(device).train()
 
         # Optimizers
         optimizer_G = optim.Adam(G.parameters(), lr=LEARNING_RATE, betas=(BETA1, BETA2))
         optimizer_D = optim.Adam(D.parameters(), lr=LEARNING_RATE, betas=(BETA1, BETA2))
 
-        #TODO: do we train a separate Q or do we reuse D and penalize it?
-        # this is InfoGAN vs fiwGAN
-        # depends on what to do with the phaseshuffle
-        # why RMS? Replace with Adam?
-
-        # optimizer_Q = optim.RMSprop(Q.parameters(), lr=LEARNING_RATE)
-        optimizer_Q = optim.RMSprop(it.chain(G.parameters(), Q.parameters()),
+        optimizer_Q = optim.RMSprop(it.chain(G.parameters(), D.parameters()),
                                     lr=LEARNING_RATE)
         criterion_Q = torch.nn.BCEWithLogitsLoss()
 
-        return G, D, optimizer_G, optimizer_D, Q, optimizer_Q, criterion_Q
+        return G, D, optimizer_G, optimizer_D, optimizer_Q, criterion_Q
 
     # Load models
-    G, D, optimizer_G, optimizer_D, Q, optimizer_Q, criterion_Q = make_new()
+    G, D, optimizer_G, optimizer_D, optimizer_Q, criterion_Q = make_new()
     start_epoch = 0
     start_step = 0
 
@@ -197,7 +179,6 @@ if __name__ == "__main__":
 
             G.load_state_dict(torch.load(f=os.path.join(logdir, fname + "_G.pt")))
             D.load_state_dict(torch.load(f=os.path.join(logdir, fname + "_D.pt")))
-            Q.load_state_dict(torch.load(f=os.path.join(logdir, fname + "_Q.pt")))
 
             optimizer_G.load_state_dict(torch.load(f=os.path.join(logdir, fname + "_Gopt.pt")))
             optimizer_D.load_state_dict(torch.load(f=os.path.join(logdir, fname + "_Dopt.pt")))
@@ -231,20 +212,23 @@ if __name__ == "__main__":
             optimizer_D.zero_grad()
 
             real = real.to(device)
+
             epsilon = torch.rand(BATCH_SIZE, 1, 1).repeat(1, 1, SLICE_LEN).to(device)
             _z = torch.FloatTensor(BATCH_SIZE, 100 - NUM_CATEG).uniform_(-1, 1).to(device)
-
             # TODO: Infogan has uniform on -1, 1 instead of setting it to a bit value
             # while infoGAN has a different loss
             c = torch.FloatTensor(BATCH_SIZE, NUM_CATEG).bernoulli_().to(device)
-
             z = torch.cat((c, _z), dim=1)
 
             fake = G(z)
-            gradPenalty = gradient_penalty(G, D, real, fake, epsilon)
+
+            gradPenalty = gradient_penalty(D, real, fake, epsilon)
+            # Save latent code estimates - cHat - for later
+            D_fake, cHat = D(fake)
+            D_real, _ = D(real)
 
             # TODO: replace this with MSE for infoGAN?
-            D_loss = torch.mean(D(fake) - D(real) + LAMBDA * gradPenalty)
+            D_loss = torch.mean(D_fake - D_real + LAMBDA_GRAD * gradPenalty)
 
             writer.add_scalar('Loss/Discriminator', D_loss.detach().item(), step)
 
@@ -266,11 +250,9 @@ if __name__ == "__main__":
 
                 # INFORMATIONAL LOSS
 
-                #TODO: have the discriminator spit out Q(fake)
-                # w/o phaseshuffle?
                 optimizer_Q.zero_grad()
 
-                Q_loss = LAMBDA_INFO * criterion_Q(Q(fake), c)
+                Q_loss = LAMBDA_INFO * criterion_Q(cHat, c)
                 writer.add_scalar('Loss/Q_Network', Q_loss.detach().item(), step)
 
                 Q_loss.backward()
@@ -281,7 +263,6 @@ if __name__ == "__main__":
         if not epoch % SAVE_INT:
             torch.save(G.state_dict(), os.path.join(logdir, f'epoch{epoch}_step{step}_G.pt'))
             torch.save(D.state_dict(), os.path.join(logdir, f'epoch{epoch}_step{step}_D.pt'))
-            torch.save(Q.state_dict(), os.path.join(logdir, f'epoch{epoch}_step{step}_Q.pt'))
 
             torch.save(optimizer_G.state_dict(), os.path.join(logdir, f'epoch{epoch}_step{step}_Gopt.pt'))
             torch.save(optimizer_D.state_dict(), os.path.join(logdir, f'epoch{epoch}_step{step}_Dopt.pt'))
