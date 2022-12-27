@@ -145,6 +145,8 @@ if __name__ == "__main__":
     WAVEGAN_DISC_NUPDATES = 5
     BATCH_SIZE = args.batch_size
     LAMBDA = 10
+    # Q penalty portion (the rest are 1)
+    LAMBDA_INFO = 1
     LEARNING_RATE = 1e-4
     BETA1 = 0.5
     BETA2 = 0.9
@@ -225,7 +227,7 @@ if __name__ == "__main__":
 
         for i, real in enumerate(pbar):
 
-            # Discriminator Update
+            # DISCRIMINATOR UPDATE
             optimizer_D.zero_grad()
 
             real = real.to(device)
@@ -241,7 +243,9 @@ if __name__ == "__main__":
             fake = G(z)
             gradPenalty = gradient_penalty(G, D, real, fake, epsilon)
 
+            # TODO: replace this with MSE for infoGAN?
             D_loss = torch.mean(D(fake) - D(real) + LAMBDA * gradPenalty)
+
             writer.add_scalar('Loss/Discriminator', D_loss.detach().item(), step)
 
             D_loss.backward()
@@ -249,7 +253,7 @@ if __name__ == "__main__":
 
             if i % WAVEGAN_DISC_NUPDATES == 0:
 
-                # Generator update
+                # GENERATOR UPDATE
 
                 optimizer_G.zero_grad()
 
@@ -260,12 +264,13 @@ if __name__ == "__main__":
                 G_loss.backward(retain_graph=True)
                 optimizer_G.step()
 
-                # Informational loss
+                # INFORMATIONAL LOSS
 
-                #TODO: have the discriminator spit this out (w/o phaseshuffle?)
+                #TODO: have the discriminator spit out Q(fake)
+                # w/o phaseshuffle?
                 optimizer_Q.zero_grad()
 
-                Q_loss = criterion_Q(Q(fake), c)
+                Q_loss = LAMBDA_INFO * criterion_Q(Q(fake), c)
                 writer.add_scalar('Loss/Q_Network', Q_loss.detach().item(), step)
 
                 Q_loss.backward()
