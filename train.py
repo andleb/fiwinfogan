@@ -239,8 +239,7 @@ if __name__ == "__main__":
 
             # TODO: replace this with MSE for infoGAN?
             D_loss = torch.mean(D_fake - D_real + LAMBDA_GRAD * gradPenalty)
-
-            # writer.add_scalar('Loss/Discriminator', D_loss.detach().item(), step)
+            writer.add_scalar('Loss/Discriminator', D_loss.detach().item(), step)
 
             D_loss.backward(retain_graph=True)
             optimizer_D.step()
@@ -254,8 +253,7 @@ if __name__ == "__main__":
                 fake = G(z)
                 D_fake, _ = D(fake)
                 G_loss = torch.mean(-D_fake)
-
-                # writer.add_scalar('Loss/Generator', G_loss.detach().item(), step)
+                writer.add_scalar('Loss/Generator', G_loss.detach().item(), step)
 
                 G_loss.backward(retain_graph=True)
                 optimizer_G.step()
@@ -266,7 +264,7 @@ if __name__ == "__main__":
                 _, cHat = D(G(z))
 
                 Q_loss = LAMBDA_INFO * criterion_Q(cHat, c)
-                # writer.add_scalar('Loss/Q_Network', Q_loss.detach().item(), step)
+                writer.add_scalar('Loss/Q_Network', Q_loss.detach().item(), step)
 
                 Q_loss.backward()
                 optimizer_Q.step()
