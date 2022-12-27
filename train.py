@@ -242,7 +242,7 @@ if __name__ == "__main__":
                 optimizer_G.zero_grad()
 
                 # G Loss
-                G_loss = torch.mean(-D(fake))
+                G_loss = torch.mean(-D_fake)
                 writer.add_scalar('Loss/Generator', G_loss.detach().item(), step)
 
                 G_loss.backward(retain_graph=True)
