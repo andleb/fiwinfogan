@@ -229,15 +229,15 @@ if __name__ == "__main__":
             fake = G(z)
 
             #NOTE:  create & retain graph
-            gradPenalty = gradient_penalty(D, real.clone().detach().requires_grad_(True),
-                                           fake.clone().detach().requires_grad_(True),
+            gradPenalty = gradient_penalty(D, real,
+                                           fake,
                                            epsilon)
             # Save latent code estimates - cHat - for later
-            D_fake, cHat = D(fake)
+            D_fake, _ = D(fake)
             D_real, _ = D(real)
 
             # TODO: replace this with MSE for infoGAN?
-            D_loss = torch.mean(D_fake.detach() - D_real + LAMBDA_GRAD * gradPenalty)
+            D_loss = torch.mean(D_fake - D_real + LAMBDA_GRAD * gradPenalty)
 
             writer.add_scalar('Loss/Discriminator', D_loss.detach().item(), step)
 
@@ -251,8 +251,8 @@ if __name__ == "__main__":
                 optimizer_G.zero_grad()
 
                 # G Loss
+                D_fake, cHat = D(G(z))
                 G_loss = torch.mean(-D_fake)
-                writer.add_scalar('Loss/Generator', G_loss.detach().item(), step)
 
                 # Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
                 # RuntimeError: one of the variables needed for gradient computation has been modified by an inplace operation: [torch.cuda.FloatTensor
@@ -261,6 +261,7 @@ if __name__ == "__main__":
                 # or anywhere later. Good luck!
 
                 G_loss.backward(retain_graph=True)
+                writer.add_scalar('Loss/Generator', G_loss.detach().item(), step)
                 optimizer_G.step()
 
                 # INFORMATIONAL LOSS
@@ -268,9 +269,9 @@ if __name__ == "__main__":
                 optimizer_Q.zero_grad()
 
                 Q_loss = LAMBDA_INFO * criterion_Q(cHat, c)
-                writer.add_scalar('Loss/Q_Network', Q_loss.detach().item(), step)
 
                 Q_loss.backward()
+                writer.add_scalar('Loss/Q_Network', Q_loss.detach().item(), step)
                 optimizer_Q.step()
 
             step += 1
