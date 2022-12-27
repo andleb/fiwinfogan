@@ -219,7 +219,6 @@ if __name__ == "__main__":
 
             real = real.to(device)
 
-            epsilon = torch.rand(BATCH_SIZE, 1, 1).repeat(1, 1, SLICE_LEN).to(device)
             _z = torch.FloatTensor(BATCH_SIZE, 100 - NUM_CATEG).uniform_(-1, 1).to(device)
             # TODO: Infogan has uniform on -1, 1 instead of setting it to a bit value
             # while infoGAN has a different loss
@@ -229,7 +228,9 @@ if __name__ == "__main__":
             fake = G(z)
 
             #NOTE:  create & retain graph
-            gradPenalty = gradient_penalty(D, real,
+            epsilon = torch.rand(BATCH_SIZE, 1, 1).repeat(1, 1, SLICE_LEN).to(device)
+            gradPenalty = gradient_penalty(D,
+                                           real,
                                            fake,
                                            epsilon)
             # Save latent code estimates - cHat - for later
@@ -250,27 +251,24 @@ if __name__ == "__main__":
                 optimizer_G.zero_grad()
 
                 # G Loss
-                D_fake, _ = D(G(z))
+                fake = G(z)
+                D_fake, cHat = D(fake)
                 G_loss = torch.mean(-D_fake)
 
-                # Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
-                # RuntimeError: one of the variables needed for gradient computation has been modified by an inplace operation: [torch.cuda.FloatTensor
-                # [65536, 1]], which is output 0 of AsStride dBackward0, is at version 2; expected version 1 instead.
-                # Hint: the backtrace further above shows the operation that failed to compute its gradient. The variable in question was changed in there
-                # or anywhere later. Good luck!
+                writer.add_scalar('Loss/Generator', G_loss.detach().item(), step)
 
                 G_loss.backward(retain_graph=True)
-                writer.add_scalar('Loss/Generator', G_loss.detach().item(), step)
                 optimizer_G.step()
 
                 # INFORMATIONAL LOSS
-                optimizer_Q.zero_grad()
+                # optimizer_Q.zero_grad()
 
-                _, cHat = D(G(z))
+                # _, cHat = D(G(z))
 
                 Q_loss = LAMBDA_INFO * criterion_Q(cHat, c)
-                Q_loss.backward()
                 writer.add_scalar('Loss/Q_Network', Q_loss.detach().item(), step)
+
+                Q_loss.backward()
                 optimizer_Q.step()
 
             step += 1
