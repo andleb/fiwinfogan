@@ -239,7 +239,7 @@ if __name__ == "__main__":
 
             writer.add_scalar('Loss/Discriminator', D_loss.detach().item(), step)
 
-            D_loss.backward(create_graph=True, retain_graph=True)
+            D_loss.backward(retain_graph=True)
             optimizer_D.step()
 
             if i % WAVEGAN_DISC_NUPDATES == 0:
