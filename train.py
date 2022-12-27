@@ -51,6 +51,7 @@ class AudioDataSet:
 def gradient_penalty(D, real, fake, epsilon):
     x_hat = epsilon * real + (1 - epsilon) * fake
     scores, _ = D(x_hat)
+
     grad = torch.autograd.grad(
         outputs=scores,
         inputs=x_hat,
@@ -167,6 +168,9 @@ if __name__ == "__main__":
 
         return G, D, optimizer_G, optimizer_D, optimizer_Q, criterion_Q
 
+    # DEBUG:
+    torch.autograd.set_detect_anomaly(True)
+
     # Load models
     G, D, optimizer_G, optimizer_D, optimizer_Q, criterion_Q = make_new()
     start_epoch = 0
@@ -261,7 +265,7 @@ if __name__ == "__main__":
                 Q_loss = LAMBDA_INFO * criterion_Q(cHat, c)
                 writer.add_scalar('Loss/Q_Network', Q_loss.detach().item(), step)
 
-                Q_loss.backward()
+                Q_loss.backward(retain_graph=True)
                 optimizer_Q.step()
 
             step += 1
