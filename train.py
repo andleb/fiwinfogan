@@ -229,7 +229,9 @@ if __name__ == "__main__":
             fake = G(z)
 
             #NOTE:  create & retain graph
-            gradPenalty = gradient_penalty(D, real.detach(), fake.detach(), epsilon)
+            gradPenalty = gradient_penalty(D, real.clone().detach().requires_grad_(True),
+                                           fake.clone().detach().requires_grad_(True),
+                                           epsilon)
             # Save latent code estimates - cHat - for later
             D_fake, cHat = D(fake)
             D_real, _ = D(real)
