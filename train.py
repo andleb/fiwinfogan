@@ -175,9 +175,10 @@ if __name__ == "__main__":
         # if args.fiw:
         print("Training a fiwGAN with ", NUM_CATEG, " categories.")
 
-        #TODO: do we train a separate Q or do we reuse D and penalize it
+        #TODO: do we train a separate Q or do we reuse D and penalize it?
+        # this is InfoGAN vs fiwGAN
         # depends on what to do with the phaseshuffle
-        # why RMS?
+        # why RMS? Replace with Adam?
 
         # optimizer_Q = optim.RMSprop(Q.parameters(), lr=LEARNING_RATE)
         optimizer_Q = optim.RMSprop(it.chain(G.parameters(), Q.parameters()),
@@ -266,7 +267,6 @@ if __name__ == "__main__":
             if i % WAVEGAN_DISC_NUPDATES == 0:
                 optimizer_G.zero_grad()
                 # if train_Q:
-                optimizer_Q.zero_grad()
 
                 # _z = torch.FloatTensor(BATCH_SIZE, 100 - NUM_CATEG).uniform_(-1, 1).to(device)
 
@@ -287,11 +287,13 @@ if __name__ == "__main__":
                 G_loss = torch.mean(-D(fake))
                 G_loss.backward(retain_graph=True)
                 writer.add_scalar('Loss/Generator', G_loss.detach().item(), step)
+                optimizer_G.step()
 
                 # Q Loss
                 # if train_Q:
 
                 #TODO: have the discriminator spit this out (w/o phaseshuffle?)
+                optimizer_Q.zero_grad()
                 Q_loss = criterion_Q(Q(fake), c)
                 Q_loss.backward()
                 writer.add_scalar('Loss/Q_Network', Q_loss.detach().item(), step)
@@ -299,7 +301,6 @@ if __name__ == "__main__":
                 optimizer_Q.step()
 
                 # Update
-                optimizer_G.step()
 
             step += 1
 
