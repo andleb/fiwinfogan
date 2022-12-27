@@ -2,6 +2,8 @@ import argparse
 import os
 import re
 
+import itertools as it
+
 import numpy as np
 import torch
 import torch.optim as optim
@@ -172,7 +174,14 @@ if __name__ == "__main__":
         Q = WaveGANQNetwork(slice_len=SLICE_LEN, num_categ=NUM_CATEG).to(device).train()
         # if args.fiw:
         print("Training a fiwGAN with ", NUM_CATEG, " categories.")
-        optimizer_Q = optim.RMSprop(Q.parameters(), lr=LEARNING_RATE)
+
+        #TODO: do we train a separate Q or do we reuse D and penalize it
+        # depends on what to do with the phaseshuffle
+        # why RMS?
+
+        # optimizer_Q = optim.RMSprop(Q.parameters(), lr=LEARNING_RATE)
+        optimizer_Q = optim.RMSprop(it.chain(G.parameters(), Q.parameters()),
+                                    lr=LEARNING_RATE)
         criterion_Q = torch.nn.BCEWithLogitsLoss()
 
         # elif args.ciw:
@@ -234,8 +243,11 @@ if __name__ == "__main__":
 
             # if train_Q:
                 # if args.fiw:
-            #FIXME: Infogan has uniform on -1, 1 instead of setting it to a bit value
+
+            # FIXME: Infogan has uniform on -1, 1 instead of setting it to a bit value
+            # BUT we're using BCE loss!!!
             c = torch.FloatTensor(BATCH_SIZE, NUM_CATEG).bernoulli_().to(device)
+            # c = torch.FloatTensor(BATCH_SIZE, NUM_CATEG).uniform_(-1, 1, ).to(device)
                 # else:
                     # c = torch.nn.functional.one_hot(torch.randint(0, NUM_CATEG, (BATCH_SIZE,)),
                                                     # num_classes=NUM_CATEG).to(device)
@@ -278,6 +290,8 @@ if __name__ == "__main__":
 
                 # Q Loss
                 # if train_Q:
+
+                #TODO: have the discriminator spit this out (w/o phaseshuffle?)
                 Q_loss = criterion_Q(Q(fake), c)
                 Q_loss.backward()
                 writer.add_scalar('Loss/Q_Network', Q_loss.detach().item(), step)
