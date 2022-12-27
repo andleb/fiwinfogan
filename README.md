@@ -1,6 +1,7 @@
-# ciwganfiwgan-pytorch
+# fiwinfogan
 
-This is a PyTorch implementation of **Categorical Info WaveGAN (ciwGAN)** and **Featural Info WaveGAN (fiwGAN)** from [Beguš, 2021](https://www.sciencedirect.com/science/article/pii/S0893608021001052). The original code (in Tensorflow 1.12) can be found [here](https://github.com/gbegus/fiwGAN-ciwGAN).
+This is an effort to combine **Featural Info WaveGAN (fiwGAN)** from [Beguš, 2021](https://www.sciencedirect.com/science/article/pii/S0893608021001052) 
+with features present in the original InfoGAN.
 
 ## Usage
 
