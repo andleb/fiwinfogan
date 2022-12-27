@@ -229,13 +229,13 @@ if __name__ == "__main__":
             fake = G(z)
 
             #NOTE:  create & retain graph
-            gradPenalty = gradient_penalty(D, real, fake, epsilon)
+            gradPenalty = gradient_penalty(D, real.detach(), fake.detach(), epsilon)
             # Save latent code estimates - cHat - for later
             D_fake, cHat = D(fake)
             D_real, _ = D(real)
 
             # TODO: replace this with MSE for infoGAN?
-            D_loss = torch.mean(D_fake - D_real + LAMBDA_GRAD * gradPenalty)
+            D_loss = torch.mean(D_fake.detach() - D_real + LAMBDA_GRAD * gradPenalty)
 
             writer.add_scalar('Loss/Discriminator', D_loss.detach().item(), step)
 
@@ -258,7 +258,7 @@ if __name__ == "__main__":
                 # Hint: the backtrace further above shows the operation that failed to compute its gradient. The variable in question was changed in there
                 # or anywhere later. Good luck!
 
-                G_loss.backward(create_graph=True, retain_graph=True)
+                G_loss.backward(retain_graph=True)
                 optimizer_G.step()
 
                 # INFORMATIONAL LOSS
