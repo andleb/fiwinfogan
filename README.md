@@ -5,17 +5,6 @@ with features present in the original InfoGAN.
 
 ## Usage
 
-### Training WaveGAN
-```
-python train.py --datadir training_directory --logdir log_directory
-```
-
-### Training ciwGAN
-```
-python train.py --ciw --num_categ N --datadir training_directory --logdir log_directory
-```
-
-### Training fiwGAN
 ```
 python train.py --fiw --num_categ N --datadir training_directory --logdir log_directory
 ```
