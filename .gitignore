@@ -1,0 +1,7 @@
+*.pyc
+/.idea/
+*.pkl
+
+pytorch-generative-model-collections/
+PyTorch-GAN/
+InfoGAN/
