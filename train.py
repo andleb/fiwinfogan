@@ -253,35 +253,37 @@ if __name__ == "__main__":
                 if train_Q:
                     optimizer_Q.zero_grad()
 
-                _z = torch.FloatTensor(BATCH_SIZE, 100 - NUM_CATEG).uniform_(-1, 1).to(device)
+                # _z = torch.FloatTensor(BATCH_SIZE, 100 - NUM_CATEG).uniform_(-1, 1).to(device)
 
-                if train_Q:
-                    if args.fiw:
-                        c = torch.FloatTensor(BATCH_SIZE, NUM_CATEG).bernoulli_().to(device)
-                    else:
-                        c = torch.nn.functional.one_hot(torch.randint(0, NUM_CATEG, (BATCH_SIZE,)),
-                                                        num_classes=NUM_CATEG).to(device)
+                # if train_Q:
+                #     if args.fiw:
+                #         c = torch.FloatTensor(BATCH_SIZE, NUM_CATEG).bernoulli_().to(device)
+                #     else:
+                #         c = torch.nn.functional.one_hot(torch.randint(0, NUM_CATEG, (BATCH_SIZE,)),
+                #                                         num_classes=NUM_CATEG).to(device)
 
-                    z = torch.cat((c, _z), dim=1)
-                else:
-                    z = _z
+                #     z = torch.cat((c, _z), dim=1)
+                # else:
+                #     z = _z
 
-                G_z = G(z)
+                # G_z = G(z)
 
                 # G Loss
-                G_loss = torch.mean(-D(G_z))
+                G_loss = torch.mean(-D(fake))
                 G_loss.backward(retain_graph=True)
                 writer.add_scalar('Loss/Generator', G_loss.detach().item(), step)
 
                 # Q Loss
                 if train_Q:
-                    Q_loss = criterion_Q(Q(G_z), c)
+                    Q_loss = criterion_Q(Q(fake), c)
                     Q_loss.backward()
                     writer.add_scalar('Loss/Q_Network', Q_loss.detach().item(), step)
+
                     optimizer_Q.step()
 
                 # Update
                 optimizer_G.step()
+
             step += 1
 
         if not epoch % SAVE_INT:

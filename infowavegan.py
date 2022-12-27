@@ -87,6 +87,7 @@ class WaveGANGenerator(torch.nn.Module):
             upsample='zeros',
             train=False
     ):
+
         assert slice_len in [16384, 65536]
         self.slice_len = slice_len
         super(WaveGANGenerator, self).__init__()
@@ -226,6 +227,7 @@ class WaveGANQNetwork(WaveGANDiscriminator):
             phaseshuffle_rad=0,
             slice_len=16384,
     ):
+
         super(WaveGANQNetwork, self).__init__(
             kernel_len=25,
             dim=64,
