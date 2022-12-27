@@ -116,20 +116,21 @@ if __name__ == "__main__":
         help='Save interval in epochs'
     )
 
-    # Q-net Arguments
-    Q_group = parser.add_mutually_exclusive_group()
-    Q_group.add_argument(
-        '--ciw',
-        action='store_true',
-        help='Trains a ciwgan'
-    )
-    Q_group.add_argument(
-        '--fiw',
-        action='store_true',
-        help='Trains a fiwgan'
-    )
+    # # Q-net Arguments
+    # Q_group = parser.add_mutually_exclusive_group()
+    # Q_group.add_argument(
+    #     '--ciw',
+    #     action='store_true',
+    #     help='Trains a ciwgan'
+    # )
+    # Q_group.add_argument(
+    #     '--fiw',
+    #     action='store_true',
+    #     help='Trains a fiwgan'
+    # )
+
     args = parser.parse_args()
-    train_Q = args.ciw or args.fiw
+    # train_Q = args.ciw or args.fiw
 
     # Parameters
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -166,17 +167,18 @@ if __name__ == "__main__":
         optimizer_G = optim.Adam(G.parameters(), lr=LEARNING_RATE, betas=(BETA1, BETA2))
         optimizer_D = optim.Adam(D.parameters(), lr=LEARNING_RATE, betas=(BETA1, BETA2))
 
-        Q, optimizer_Q, criterion_Q = (None, None, None)
-        if train_Q:
-            Q = WaveGANQNetwork(slice_len=SLICE_LEN, num_categ=NUM_CATEG).to(device).train()
-        if args.fiw:
-            print("Training a fiwGAN with ", NUM_CATEG, " categories.")
-            optimizer_Q = optim.RMSprop(Q.parameters(), lr=LEARNING_RATE)
-            criterion_Q = torch.nn.BCEWithLogitsLoss()
-        elif args.ciw:
-            print("Training a ciwGAN with ", NUM_CATEG, " categories.")
-            optimizer_Q = optim.RMSprop(Q.parameters(), lr=LEARNING_RATE)
-            criterion_Q = lambda inpt, target: torch.nn.CrossEntropyLoss()(inpt, target.max(dim=1)[1])
+        # Q, optimizer_Q, criterion_Q = (None, None, None)
+        # if train_Q:
+        Q = WaveGANQNetwork(slice_len=SLICE_LEN, num_categ=NUM_CATEG).to(device).train()
+        # if args.fiw:
+        print("Training a fiwGAN with ", NUM_CATEG, " categories.")
+        optimizer_Q = optim.RMSprop(Q.parameters(), lr=LEARNING_RATE)
+        criterion_Q = torch.nn.BCEWithLogitsLoss()
+
+        # elif args.ciw:
+        #     print("Training a ciwGAN with ", NUM_CATEG, " categories.")
+        #     optimizer_Q = optim.RMSprop(Q.parameters(), lr=LEARNING_RATE)
+        #     criterion_Q = lambda inpt, target: torch.nn.CrossEntropyLoss()(inpt, target.max(dim=1)[1])
 
         return G, D, optimizer_G, optimizer_D, Q, optimizer_Q, criterion_Q
 
@@ -192,14 +194,14 @@ if __name__ == "__main__":
 
             G.load_state_dict(torch.load(f=os.path.join(logdir, fname + "_G.pt")))
             D.load_state_dict(torch.load(f=os.path.join(logdir, fname + "_D.pt")))
-            if train_Q:
-                Q.load_state_dict(torch.load(f=os.path.join(logdir, fname + "_Q.pt")))
+            # if train_Q:
+            Q.load_state_dict(torch.load(f=os.path.join(logdir, fname + "_Q.pt")))
 
             optimizer_G.load_state_dict(torch.load(f=os.path.join(logdir, fname + "_Gopt.pt")))
             optimizer_D.load_state_dict(torch.load(f=os.path.join(logdir, fname + "_Dopt.pt")))
 
-            if train_Q:
-                optimizer_Q.load_state_dict(torch.load(f=os.path.join(logdir, fname + "_Qopt.pt")))
+            # if train_Q:
+            optimizer_Q.load_state_dict(torch.load(f=os.path.join(logdir, fname + "_Qopt.pt")))
 
             start_step = int(re.search(r'_step(\d+).*', fname).group(1))
             print(f"Successfully loaded model. Continuing training from epoch {start_epoch},"
@@ -230,15 +232,16 @@ if __name__ == "__main__":
             epsilon = torch.rand(BATCH_SIZE, 1, 1).repeat(1, 1, SLICE_LEN).to(device)
             _z = torch.FloatTensor(BATCH_SIZE, 100 - NUM_CATEG).uniform_(-1, 1).to(device)
 
-            if train_Q:
-                if args.fiw:
-                    c = torch.FloatTensor(BATCH_SIZE, NUM_CATEG).bernoulli_().to(device)
-                else:
-                    c = torch.nn.functional.one_hot(torch.randint(0, NUM_CATEG, (BATCH_SIZE,)),
-                                                    num_classes=NUM_CATEG).to(device)
-                z = torch.cat((c, _z), dim=1)
-            else:
-                z = _z
+            # if train_Q:
+                # if args.fiw:
+            #FIXME: Infogan has uniform on -1, 1 instead of setting it to a bit value
+            c = torch.FloatTensor(BATCH_SIZE, NUM_CATEG).bernoulli_().to(device)
+                # else:
+                    # c = torch.nn.functional.one_hot(torch.randint(0, NUM_CATEG, (BATCH_SIZE,)),
+                                                    # num_classes=NUM_CATEG).to(device)
+            z = torch.cat((c, _z), dim=1)
+            # else:
+                # z = _z
 
             fake = G(z)
             penalty = gradient_penalty(G, D, real, fake, epsilon)
@@ -250,8 +253,8 @@ if __name__ == "__main__":
 
             if i % WAVEGAN_DISC_NUPDATES == 0:
                 optimizer_G.zero_grad()
-                if train_Q:
-                    optimizer_Q.zero_grad()
+                # if train_Q:
+                optimizer_Q.zero_grad()
 
                 # _z = torch.FloatTensor(BATCH_SIZE, 100 - NUM_CATEG).uniform_(-1, 1).to(device)
 
@@ -274,12 +277,12 @@ if __name__ == "__main__":
                 writer.add_scalar('Loss/Generator', G_loss.detach().item(), step)
 
                 # Q Loss
-                if train_Q:
-                    Q_loss = criterion_Q(Q(fake), c)
-                    Q_loss.backward()
-                    writer.add_scalar('Loss/Q_Network', Q_loss.detach().item(), step)
+                # if train_Q:
+                Q_loss = criterion_Q(Q(fake), c)
+                Q_loss.backward()
+                writer.add_scalar('Loss/Q_Network', Q_loss.detach().item(), step)
 
-                    optimizer_Q.step()
+                optimizer_Q.step()
 
                 # Update
                 optimizer_G.step()
@@ -289,10 +292,10 @@ if __name__ == "__main__":
         if not epoch % SAVE_INT:
             torch.save(G.state_dict(), os.path.join(logdir, f'epoch{epoch}_step{step}_G.pt'))
             torch.save(D.state_dict(), os.path.join(logdir, f'epoch{epoch}_step{step}_D.pt'))
-            if train_Q:
-                torch.save(Q.state_dict(), os.path.join(logdir, f'epoch{epoch}_step{step}_Q.pt'))
+            # if train_Q:
+            torch.save(Q.state_dict(), os.path.join(logdir, f'epoch{epoch}_step{step}_Q.pt'))
 
             torch.save(optimizer_G.state_dict(), os.path.join(logdir, f'epoch{epoch}_step{step}_Gopt.pt'))
             torch.save(optimizer_D.state_dict(), os.path.join(logdir, f'epoch{epoch}_step{step}_Dopt.pt'))
-            if train_Q:
-                torch.save(optimizer_Q.state_dict(), os.path.join(logdir, f'epoch{epoch}_step{step}_Qopt.pt'))
+            # if train_Q:
+            torch.save(optimizer_Q.state_dict(), os.path.join(logdir, f'epoch{epoch}_step{step}_Qopt.pt'))
