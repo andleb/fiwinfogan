@@ -59,8 +59,10 @@ def gradient_penalty(D, real, fake, epsilon):
         create_graph=True,
         retain_graph=True
     )[0]
+
     grad_norm = grad.view(grad.shape[0], -1).norm(p=2, dim=1)  # norm along each batch
     penalty = ((grad_norm - 1) ** 2).unsqueeze(1)
+
     return penalty
 
 
@@ -226,6 +228,7 @@ if __name__ == "__main__":
 
             fake = G(z)
 
+            #NOTE:  create & retain graph
             gradPenalty = gradient_penalty(D, real, fake, epsilon)
             # Save latent code estimates - cHat - for later
             D_fake, cHat = D(fake)
@@ -236,7 +239,7 @@ if __name__ == "__main__":
 
             writer.add_scalar('Loss/Discriminator', D_loss.detach().item(), step)
 
-            D_loss.backward(retain_graph=True)
+            D_loss.backward(create_graph=True, retain_graph=True)
             optimizer_D.step()
 
             if i % WAVEGAN_DISC_NUPDATES == 0:
@@ -250,12 +253,12 @@ if __name__ == "__main__":
                 writer.add_scalar('Loss/Generator', G_loss.detach().item(), step)
 
                 # Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
-                # RuntimeError: Trying to backward through the graph a second time (or directly access saved tensors after they have already been freed).
-                # Saved intermediate values of the graph are freed when you call .backward() or autograd.grad().
-                #Specify retain_graph=True if you need to backward through the graph a second time or if you need to access saved tensors
-                #after calling backward.
+                # RuntimeError: one of the variables needed for gradient computation has been modified by an inplace operation: [torch.cuda.FloatTensor
+                # [65536, 1]], which is output 0 of AsStride dBackward0, is at version 2; expected version 1 instead.
+                # Hint: the backtrace further above shows the operation that failed to compute its gradient. The variable in question was changed in there
+                # or anywhere later. Good luck!
 
-                G_loss.backward(retain_graph=True)
+                G_loss.backward(create_graph=True, retain_graph=True)
                 optimizer_G.step()
 
                 # INFORMATIONAL LOSS
@@ -265,7 +268,7 @@ if __name__ == "__main__":
                 Q_loss = LAMBDA_INFO * criterion_Q(cHat, c)
                 writer.add_scalar('Loss/Q_Network', Q_loss.detach().item(), step)
 
-                Q_loss.backward(retain_graph=True)
+                Q_loss.backward()
                 optimizer_Q.step()
 
             step += 1
