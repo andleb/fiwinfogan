@@ -214,6 +214,10 @@ if __name__ == "__main__":
 
         for i, real in enumerate(pbar):
 
+            if i % WAVEGAN_DISC_NUPDATES == 0:
+                # INFORMATIONAL LOSS
+                optimizer_Q.zero_grad()
+
             # DISCRIMINATOR UPDATE
             optimizer_D.zero_grad()
 
@@ -242,7 +246,6 @@ if __name__ == "__main__":
             writer.add_scalar('Loss/Discriminator', D_loss.detach().item(), step)
 
             D_loss.backward(retain_graph=True)
-            optimizer_D.step()
 
             if i % WAVEGAN_DISC_NUPDATES == 0:
 
@@ -256,10 +259,6 @@ if __name__ == "__main__":
                 writer.add_scalar('Loss/Generator', G_loss.detach().item(), step)
 
                 G_loss.backward(retain_graph=True)
-                optimizer_G.step()
-
-                # INFORMATIONAL LOSS
-                optimizer_Q.zero_grad()
 
                 # TODO: try to keep these
                 _, cHat = D(G(z))
@@ -268,8 +267,12 @@ if __name__ == "__main__":
                 writer.add_scalar('Loss/Q_Network', Q_loss.detach().item(), step)
 
                 Q_loss.backward()
-                optimizer_Q.step()
 
+                # Step
+                optimizer_Q.step()
+                optimizer_G.step()
+
+            optimizer_D.step()
             step += 1
 
         if not epoch % SAVE_INT:
