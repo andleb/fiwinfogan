@@ -12,7 +12,7 @@ from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 
-from infowavegan import WaveGANGenerator, WaveGANDiscriminator, WaveGANQNetwork
+from fiwinfogan import WaveGANGenerator, WaveGANQNetwork
 from utils import get_continuation_fname
 
 
