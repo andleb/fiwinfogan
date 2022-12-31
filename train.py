@@ -259,8 +259,9 @@ if __name__ == "__main__":
                 optimizer_G.step()
 
                 # INFORMATIONAL LOSS
-                # optimizer_Q.zero_grad()
+                optimizer_Q.zero_grad()
 
+                # TODO: try to keep these
                 _, cHat = D(G(z))
 
                 Q_loss = LAMBDA_INFO * criterion_Q(cHat, c)
